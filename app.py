@@ -130,34 +130,33 @@ with st.sidebar.expander("M365 連接設定", expanded=not st.session_state.conn
             # 檢查兩段驗證
             if auth_type == "帳號密碼 + 兩段驗證" and not mfa_code:
                 st.warning("請輸入兩段驗證碼")
-                return
-            
-            try:
-                with st.spinner("正在連接到 M365..."):
-                    # 如果使用兩段驗證，將驗證碼附加到密碼
-                    final_password = password
-                    if auth_type == "帳號密碼 + 兩段驗證" and mfa_code:
-                        final_password = f"{password}{mfa_code}"
-                    
-                    analyzer = OutlookTimeline(username, final_password)
-                    if analyzer.connect():
-                        st.session_state.analyzer = analyzer
-                        st.session_state.connected = True
-                        st.success("✓ 連接成功！")
+            else:
+                try:
+                    with st.spinner("正在連接到 M365..."):
+                        # 如果使用兩段驗證，將驗證碼附加到密碼
+                        final_password = password
+                        if auth_type == "帳號密碼 + 兩段驗證" and mfa_code:
+                            final_password = f"{password}{mfa_code}"
                         
-                        # 取得資料夾清單
-                        folders = analyzer.get_folders()
-                        st.session_state.folders = folders
-                        st.info(f"找到 {len(folders)} 個資料夾")
-                    else:
-                        if auth_type == "帳號密碼 + 兩段驗證":
-                            st.error("✗ 連接失敗 - 請檢查密碼和驗證碼")
+                        analyzer = OutlookTimeline(username, final_password)
+                        if analyzer.connect():
+                            st.session_state.analyzer = analyzer
+                            st.session_state.connected = True
+                            st.success("✓ 連接成功！")
+                            
+                            # 取得資料夾清單
+                            folders = analyzer.get_folders()
+                            st.session_state.folders = folders
+                            st.info(f"找到 {len(folders)} 個資料夾")
                         else:
-                            st.error("✗ 連接失敗 - 請檢查應用程式密碼")
-            except Exception as e:
-                st.error(f"連接錯誤: {e}")
-                if auth_type == "帳號密碼 + 兩段驗證":
-                    st.info("💡 建議：使用應用程式密碼可避免兩段驗證問題")
+                            if auth_type == "帳號密碼 + 兩段驗證":
+                                st.error("✗ 連接失敗 - 請檢查密碼和驗證碼")
+                            else:
+                                st.error("✗ 連接失敗 - 請檢查應用程式密碼")
+                except Exception as e:
+                    st.error(f"連接錯誤: {e}")
+                    if auth_type == "帳號密碼 + 兩段驗證":
+                        st.info("💡 建議：使用應用程式密碼可避免兩段驗證問題")
         else:
             st.warning("請輸入帳號和密碼")
 
