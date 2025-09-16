@@ -1,0 +1,46 @@
+# 環境變數檔案
+.env
+.env.local
+.streamlit/secrets.toml
+
+# Python 快取檔案
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE 檔案
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 報告輸出檔案
+*.csv
+*.json
+*.txt
+!requirements.txt
+!README.md
+
+# macOS 檔案
+.DS_Store
+
+# Windows 檔案
+Thumbs.db
