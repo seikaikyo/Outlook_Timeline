@@ -91,16 +91,55 @@ if 'connected' not in st.session_state:
 st.sidebar.header("🔐 帳號設定")
 
 with st.sidebar.expander("M365 連接設定", expanded=not st.session_state.connected):
-    username = st.text_input("M365 帳號", value="seikaikyo@yesiang.com")
-    password = st.text_input("密碼 (建議使用應用程式密碼)", type="password")
-    server = st.text_input("IMAP 伺服器", value="outlook.office365.com")
-    port = st.number_input("端口", value=993, min_value=1, max_value=65535)
+    # 嘗試從 Streamlit secrets 讀取預設值
+    default_username = ""
+    default_server = "outlook.office365.com"
+    default_port = 993
+    
+    try:
+        if "outlook" in st.secrets:
+            default_username = st.secrets["outlook"].get("M365_USERNAME", "")
+            default_server = st.secrets["outlook"].get("IMAP_SERVER", "outlook.office365.com")
+            default_port = int(st.secrets["outlook"].get("IMAP_PORT", 993))
+    except:
+        pass
+    
+    username = st.text_input("M365 帳號", value=default_username)
+    
+    # 密碼類型選擇
+    auth_type = st.radio(
+        "認證方式",
+        ["應用程式密碼 (推薦)", "帳號密碼 + 兩段驗證"],
+        help="建議使用應用程式密碼以避免兩段驗證問題"
+    )
+    
+    if auth_type == "應用程式密碼 (推薦)":
+        password = st.text_input("應用程式密碼", type="password", 
+                                help="在 Microsoft 帳戶安全性頁面生成的應用程式專用密碼")
+        mfa_code = None
+    else:
+        password = st.text_input("帳號密碼", type="password")
+        mfa_code = st.text_input("兩段驗證碼 (6位數字)", max_chars=6,
+                                help="請輸入您手機上顯示的 6 位數驗證碼")
+    
+    server = st.text_input("IMAP 伺服器", value=default_server)
+    port = st.number_input("端口", value=default_port, min_value=1, max_value=65535)
     
     if st.button("🔗 連接", key="connect_btn"):
         if username and password:
+            # 檢查兩段驗證
+            if auth_type == "帳號密碼 + 兩段驗證" and not mfa_code:
+                st.warning("請輸入兩段驗證碼")
+                return
+            
             try:
                 with st.spinner("正在連接到 M365..."):
-                    analyzer = OutlookTimeline(username, password)
+                    # 如果使用兩段驗證，將驗證碼附加到密碼
+                    final_password = password
+                    if auth_type == "帳號密碼 + 兩段驗證" and mfa_code:
+                        final_password = f"{password}{mfa_code}"
+                    
+                    analyzer = OutlookTimeline(username, final_password)
                     if analyzer.connect():
                         st.session_state.analyzer = analyzer
                         st.session_state.connected = True
@@ -111,9 +150,14 @@ with st.sidebar.expander("M365 連接設定", expanded=not st.session_state.conn
                         st.session_state.folders = folders
                         st.info(f"找到 {len(folders)} 個資料夾")
                     else:
-                        st.error("✗ 連接失敗")
+                        if auth_type == "帳號密碼 + 兩段驗證":
+                            st.error("✗ 連接失敗 - 請檢查密碼和驗證碼")
+                        else:
+                            st.error("✗ 連接失敗 - 請檢查應用程式密碼")
             except Exception as e:
                 st.error(f"連接錯誤: {e}")
+                if auth_type == "帳號密碼 + 兩段驗證":
+                    st.info("💡 建議：使用應用程式密碼可避免兩段驗證問題")
         else:
             st.warning("請輸入帳號和密碼")
 
@@ -358,9 +402,16 @@ else:
         ## 🚀 使用說明
         
         ### 1. 連接設定
-        - 輸入您的 M365 帳號和密碼
-        - 建議使用**應用程式密碼**以提高安全性
-        - 確認已在 Outlook 設定中啟用 IMAP
+        
+        #### 方式一：應用程式密碼 (推薦) 🔐
+        - 輸入您的 M365 帳號
+        - 使用應用程式密碼登入
+        - **優點**：無需每次輸入驗證碼，更安全穩定
+        
+        #### 方式二：帳號密碼 + 兩段驗證 📱
+        - 輸入您的 M365 帳號和原始密碼
+        - 輸入手機上顯示的 6 位數驗證碼
+        - **注意**：驗證碼有時效性，需要快速輸入
         
         ### 2. 搜尋郵件
         - 選擇預設關鍵字組合或自訂關鍵字
@@ -373,11 +424,17 @@ else:
         - 瀏覽詳細郵件內容
         - 匯出報告 (CSV/JSON/HTML)
         
-        ### 💡 設定應用程式密碼
+        ### 💡 如何設定應用程式密碼
         1. 登入 [Microsoft 帳戶安全性](https://account.microsoft.com/security)
         2. 選擇「進階安全性選項」
-        3. 建立新的應用程式密碼
-        4. 將密碼輸入到左側的密碼欄位
+        3. 在「應用程式密碼」區塊點擊「建立新的應用程式密碼」
+        4. 輸入應用程式名稱（例如：Outlook Timeline）
+        5. 複製產生的密碼並貼到左側的應用程式密碼欄位
+        
+        ### ⚠️ 常見問題
+        - **連接失敗**：確認已在 Outlook 設定中啟用 IMAP
+        - **兩段驗證失敗**：驗證碼有時效性，請盡快輸入
+        - **企業帳號問題**：可能需要聯繫 IT 管理員啟用 IMAP
         """)
     else:
         st.info("👈 請在左側設定搜尋參數並開始搜尋")
